@@ -1,0 +1,151 @@
+<div id="map"></div>
+<div>
+    <p>
+        <label for="originPostcode">Current location:</label> <input id="originPostcode"  name="originPostcode" />
+    </p>
+    <p>Choose search type:
+    <div>
+        <input type="radio" name="searchType" value="distance" checked="true"/>Distance<br>
+        <input type="radio" name="searchType" value="time"/>Travel time<br>
+    </div>
+    <p>
+        <label for="searchDistance">Search distance (km):</label> <input id="searchDistance" type="number" name="searchDistance">
+       
+    </p>
+
+    <p>
+        Travel Type:
+        <select id="travelType">
+            <option value="car">Car</option>
+            <option value="walk">Walking</option>
+            <option value="transit">Public transport</option>
+            <option value="bike">Cycling</option>
+        </select>
+    </p>
+    <button type="button">Search</button>
+</div>
+    
+<div>
+    <p style="float:left">ES query <textarea id="esQuery"></textarea></p>
+    <p style="float:right">ES response <textarea id="esRes"></textarea></p>
+
+</div>
+
+<script>
+   
+    // define a pair of coordinates, where the map should be centered
+    // and should serve a the source for polygonization
+    var latlon = [53.378964, -2.925791];
+    var rushHour = false;
+    // add the map and set the initial center to berlin
+    var map = L.map('map').setView(latlon, 10);
+    // scale bar
+    L.control.scale().addTo(map);
+
+    // initialise the base map
+    
+     L.tileLayer('https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiamR0MTk5IiwiYSI6ImNqbmcybTFqazB4Mm0za25tY2w5bnl3dDUifQ.DmsahhM-rKk3ohNynh2DEQ', {
+    attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> <strong><a href="https://www.mapbox.com/map-feedback/" target="_blank">Improve this map</a></strong>',
+    tileSize: 512,
+    maxZoom: 18,
+    zoomOffset: -1,
+    id: 'mapbox/streets-v11',
+    accessToken: 'pk.eyJ1IjoiamR0MTk5IiwiYSI6ImNqbmcybTFqazB4Mm0za25tY2w5bnl3dDUifQ.DmsahhM-rKk3ohNynh2DEQ'
+    }).addTo(map);
+
+    //L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiamR0MTk5IiwiYSI6ImNqbmcybTFqazB4Mm0za25tY2w5bnl3dDUifQ.DmsahhM-rKk3ohNynh2DEQ', {
+    //attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+    //maxZoom: 18,
+    //id: 'mapbox.streets',
+    //accessToken: 'pk.eyJ1IjoiamR0MTk5IiwiYSI6ImNqbmcybTFqazB4Mm0za25tY2w5bnl3dDUifQ.DmsahhM-rKk3ohNynh2DEQ'
+    //}).addTo(map);
+
+    // create the marker and add it to the map
+  
+    var originLayerGroup = L.layerGroup().addTo(map);
+    var marker = L.marker((latlon)).addTo(originLayerGroup);
+    var servicelayerGroup = L.layerGroup().addTo(map);
+
+  
+    $("input[name=searchType]").click(function() {
+        var searchType = $('input[name=searchType]:checked').val(); 
+        if (searchType == 'distance') {
+            $('label[for=searchDistance]').text("Search distance (km):");
+        }
+        if (searchType == 'time') {
+            $('label[for=searchDistance]').text("Travel time (minutes)");
+        }
+    });
+    $("button").click(function () {
+        var originPostcode = $('#originPostcode').val();
+       // rushHour = document.getElementById('rushhour').checked;
+
+      $.getJSON("/geopoints/getPoints/"+ originPostcode, function(result){
+            //response data are now in the result variable
+            latlon = [result.lat, result.lon];
+            recentreMap(latlon);
+            var searchType = $('input[name=searchType]:checked').val(); 
+            var distance = parseInt($("#searchDistance").val());
+            var travelType = $("#travelType").val();
+            var range;
+            if (searchType == 'distance') range = distance * 1000;
+            if (searchType == 'time') range= distance * 60;
+
+            SearchPolygon(range, travelType, searchType, result);
+        });
+        
+        
+    });
+
+    function recentreMap(origin) {
+        originLayerGroup.clearLayers();
+        map.setView(origin);
+        marker = L.marker((origin)).addTo(originLayerGroup);
+    }
+
+    function SearchPolygon(range, travelType, searchType, origin) {
+
+
+        GetPolygonBounds(searchType, travelType, range,origin, function(polygonBounds){
+            Query(polygonBounds);
+        });
+        
+    }
+
+    function GetPolygonBounds(searchType, travelType, range,origin, callback)
+    {
+        servicelayerGroup.clearLayers();
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+            var points = JSON.parse(this.response);
+            var polygonPoints = [];
+                polygonPoints = points.map(x => [x.lat, x.lon])
+            var polygon = L.polygon(polygonPoints, {smoothFactor:0.5,opacity:0.8, weight:5, strokeWidth:30, extendWidthX:15, extendWidthY:15}).addTo(originLayerGroup);
+                callback(this.response);
+            }
+   
+        xhttp.open("GET", "/polygon/getBounds/"+searchType +"/" +encodeURI(JSON.stringify(origin))+ "/" +travelType+"/"+range+"", true);
+        xhttp.setRequestHeader("Content-type", "application/json");
+        xhttp.send();
+    }
+
+
+    function Query(geopointsJSON) {
+        
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                var points = JSON.parse(this.response);
+                var marker = L.AwesomeMarkers.icon({  markerColor: 'red' });
+                for (var i = 0; i < points.hits.length; i++) {
+                    var service = points.hits[i]._source;   
+                    L.marker([service.location.lat, service.location.lon], { icon: marker }).addTo(servicelayerGroup).bindPopup("<b>"+service.name+"</b><br />"+ service.type);
+                }
+            }
+        };
+        xhttp.open("POST", "/querydos/50", true);
+        xhttp.setRequestHeader("Content-type", "application/json");
+        xhttp.send(geopointsJSON);
+    }
+
+</script>

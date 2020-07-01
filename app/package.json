@@ -1,0 +1,20 @@
+{
+  "name": "dos-search-bounding",
+  "version": "1.0.0",
+  "description": "Demonstration for saerching dos by geo polygons based on isocrones",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "elasticsearch": "^15.1.1",
+    "express": "^4.16.4",
+    "express-handlebars": "^3.0.0",
+    "jquery": "^3.3.1",
+    "request": "^2.88.0"
+  }
+}
