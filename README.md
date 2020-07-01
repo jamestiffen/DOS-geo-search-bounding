@@ -21,7 +21,7 @@ Set up Mapbox access token in `app/view/index.hbs`
         MAPBOX_API_ACESS_TOKEN: 'testKey',
     }
 ```
-*Get a MAPBOX_API_ACESS_TOKEN from here https://docs.mapbox.com/api/maps/
+* Get a MAPBOX_API_ACESS_TOKEN from here https://docs.mapbox.com/api/maps/
 
 Get full DOS data set to populate elastic search and add to `elasticsearch-mapping-init/pathwayesdata.json`
 
