@@ -4,7 +4,7 @@ App demonstrating the use of Isocrones api to create polygon search bounds for D
 ## Installation
 
 ### Configuration
-Set up api keys in `app/config/config.json
+Set up api keys in `app/config/config.json`
 ```json
     {
         "targomoApiKey": "1234",
